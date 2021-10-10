@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css"
+          integrity="sha384-B0vP5xmATw1+K9KRQjQERJvTumQW0nPEzvF6L/Z6nronJ3oUOFUFpCjEUQouq2+l" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/css/bootstrap4-toggle.min.css">
+    
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"
+            integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-Piv4xVNRyMGpqkS2by6br4gNJ7DXjqk09RmUpJ8jgGtD7zP9yug3goQfGII0yAns" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/js/bootstrap4-toggle.min.js"></script>
+    <title>
+G検定 模擬試験
+</title>
+    
+<link rel="stylesheet" href="./css/user_definition.css">
+
+    
+    
+</head>
+<body>
+    <div class="container">
+        
+<div class="row justify-content-center">
+    <div class="col-4">
+        <h2 class="h2 text-left">G検定 模擬試験</h2>
+    </div>
+    <div class="col-3 mt-1">
+        <div class="btn-group-toggle mb-3" data-toggle="buttons">
+            <label class="btn btn-outline-secondary btn-block active">
+                <input id="shuffle_state" type="checkbox" autocomplete="off" checked>問題をシャッフル
+            </label>
+        </div>
+    </div>
+    <div class="col-2 mt-1">
+        <button id="reset_status" class="btn btn-primary btn-md btn-block">リセット</button>
+    </div>
+    <div class="col-3 mt-1">
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-9" id="title_element">
+        <!-- 設問のタイトル -->
+    </div>
+    <div class="col-3" id="accuracy_element">
+        <!-- 正答率 -->
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-12 mt-1" id="question_element">
+        <!-- 設問の内容 -->
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-12 mt-1" id="selects_element">
+        <!-- 選択肢 -->
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-12" id="result">
+        <div class="row">
+            <div class="col-6 mt-1" id="answer_element">
+                <!-- 解答 -->
+            </div>
+            <div class="col-6 mt-1" id="user_selection_element">
+                <!-- ユーザの選択 -->
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12 mt-1" id="explanations_element">
+                <!-- 解説 -->
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12 mt-1 mb-1">
+                <button id="next_question" class="btn btn-primary btn-md btn-block">次の問題へ (key: Enter)</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    </div>
+    <script>
+        (function () {
+            // ========================
+            // ajaxのカスタマイズ
+            var orgAjax = $.ajax;
+
+            function customAjax(ajaxArgs) {
+                var settings = $.extend({}, $.ajaxSettings, ajaxArgs);
+                var deferred_org = $.Deferred();
+                var jqXHR_org = orgAjax(settings)
+                    .then(
+                        function cmnDone(data, textStatus, jqXHR) {
+                            // 個別のdone()を呼び出す
+                            deferred_org.resolveWith(this, [data, textStatus, jqXHR])
+                        },
+                        function cmnFail(jqXHR, textStatus, errorThrown) {
+                            // 個別のfail()を呼び出す
+                            deferred_org.rejectWith(this, [jqXHR, textStatus, errorThrown]);
+                        }
+                    )
+                    .catch((e) => {
+                        // 個別のdoneで発生した例外をcatchできる
+                        console.trace(e);
+                    });
+
+                return $.extend({}, jqXHR_org, deferred_org);
+            }
+            $.ajax = customAjax;
+    // ========================
+        }());
+    </script>
+    
+<script src="./js/database.js"></script>
+<script src="./js/controller_module.js"></script>
+<script>
+    (function() {
+        // 格納先のID名一覧
+        const g_element_ids = {
+            shuffle:      'shuffle_state',
+            accuracy:     'accuracy_element',
+            title:        'title_element',
+            question:     'question_element',
+            selects:      'selects_element',
+            result:       'result',
+            answer:       'answer_element',
+            user:         'user_selection_element',
+            explanations: 'explanations_element'
+        };
+
+        // ボタンにイベントを追加
+        $('html').on('keyup', (event) => {
+            const key = event.which;
+            const target_key_code = 13; // Enter key
+
+            // result が表示されているかつ、該当のキーが押下された場合
+            if ($(`#${g_element_ids.result}`).is(':visible') && (key === target_key_code)) {
+                // 該当するボタンを押下
+                $('#next_question').click();
+            }
+        });
+        $('#next_question').on('click', () => {
+            $('#title_element')[0].scrollIntoView(true);
+            controller.Next();
+        });
+        $('#reset_status').on('click', () => {
+            $('#title_element')[0].scrollIntoView(true);
+            controller.Reset();
+            controller.Next();
+        });
+
+        // 初期化処理
+        const init = () => {
+            controller.InitController(g_element_ids, datasets);
+        };
+        $(init);
+    })();
+</script>
+
+</body>
+</html>
